@@ -75,7 +75,8 @@ common_dtype(PyArray_DTypeMeta *cls, PyArray_DTypeMeta *other)
  */
 
 static PyArray_Descr *
-unit_discover_descriptor_from_pyobject(PyObject *obj)
+unit_discover_descriptor_from_pyobject(
+        PyArray_DTypeMeta *NPY_UNUSED(cls), PyObject *obj)
 {
     if (Py_TYPE(obj) != &QuantityScalar_Type) {
         PyErr_SetString(PyExc_TypeError,
