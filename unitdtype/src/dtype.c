@@ -58,6 +58,18 @@ common_instance(UnitDTypeObject *dtype1, UnitDTypeObject *dtype2)
 }
 
 
+static PyArray_DTypeMeta *
+common_dtype(PyArray_DTypeMeta *cls, PyArray_DTypeMeta *other)
+{
+    if (other == PyArray_DoubleDType) {
+        Py_INCREF(cls);
+        return cls;
+    }
+    Py_INCREF(Py_NotImplemented);
+    return (PyArray_DTypeMeta *)Py_NotImplemented;
+}
+
+
 /*
  * Functions dealing with scalar logic
  */
@@ -127,6 +139,7 @@ unit_getitem(UnitDTypeObject *descr, char *dataptr)
 
 static PyType_Slot UnitDType_Slots[] = {
     {NPY_DT_common_instance, &common_instance},
+    {NPY_DT_common_dtype, &common_dtype},
     {NPY_DT_discover_descr_from_pyobject, &unit_discover_descriptor_from_pyobject},
     {NPY_DT_setitem, &unit_setitem},
     {NPY_DT_getitem, &unit_getitem},
