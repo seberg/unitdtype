@@ -15,7 +15,7 @@ import unyt
 _unit_cache = {}
 
 
-def get_unit(obj):
+def get_unit(obj=""):
     """
     Small wrapper around unyt.Unit, because a cache seems necessary/worthwhile
     but unyt doesn't seem to cache as aggressively as it should (at least

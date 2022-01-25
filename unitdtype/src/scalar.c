@@ -24,23 +24,25 @@
 
 /*
  * Helper function also used elsewhere to make sure the unit is a unit.
+ *
+ * NOTE: Supports if `obj` is NULL (meaning nothing is passed on)
  */
 int
 UnitConverter(PyObject *obj, PyObject **unit)
 {
-    static PyObject *unyt = NULL;
-    if (NPY_UNLIKELY(unyt == NULL)) {
+    static PyObject *get_unit = NULL;
+    if (NPY_UNLIKELY(get_unit == NULL)) {
         PyObject *mod = PyImport_ImportModule("unitdtype._helpers");
         if (mod == NULL) {
             return 0;
         }
-        unyt = PyObject_GetAttrString(mod, "get_unit");
+        get_unit = PyObject_GetAttrString(mod, "get_unit");
         Py_DECREF(mod);
-        if (unyt == NULL) {
+        if (get_unit == NULL) {
             return 0;
         }
     }
-    *unit = PyObject_CallFunctionObjArgs(unyt, obj, NULL);
+    *unit = PyObject_CallFunctionObjArgs(get_unit, obj, NULL);
     if (*unit == NULL) {
         return 0;
     }

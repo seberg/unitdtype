@@ -137,22 +137,32 @@ static PyType_Slot UnitDType_Slots[] = {
 /*
  * The following defines everything type object related (i.e. not NumPy
  * specific).
+ *
+ * Note that this function is by default called without any arguments to fetch
+ * a default version of the descriptor (in principle at least).  During init
+ * we fill in `cls->singleton` though for the dimensionless unit.
  */
-
 static PyObject *
 unitdtype_new(PyTypeObject *NPY_UNUSED(cls), PyObject *args, PyObject *kwds)
 {
     static char *kwargs_strs[] = {"unit", NULL};
 
-    PyObject *unit;
+    PyObject *unit = NULL;
 
     if (!PyArg_ParseTupleAndKeywords(
-            args, kwds, "O&:Float64Unit", kwargs_strs,
+            args, kwds, "|O&:Float64Unit", kwargs_strs,
             &UnitConverter, &unit)) {
         return NULL;
     }
+    if (unit == NULL) {
+        if (!UnitConverter(NULL, &unit)) {
+            return NULL;
+        }
+    }
 
-    return (PyObject *)new_unitdtype_instance(unit);
+    PyObject *res = (PyObject *)new_unitdtype_instance(unit);
+    Py_DECREF(unit);
+    return res;
 }
 
 
@@ -189,7 +199,15 @@ PyArray_DTypeMeta UnitDType_Type = {{{
 int
 init_unit_dtype(void)
 {
-    PyArrayMethod_Spec *casts[] = {&UnitToUnitCastSpec, NULL};
+    PyArrayMethod_Spec *casts[] = {
+            &UnitToUnitCastSpec, &UnitToDoubleCastSpec, &DoubleToUnitCastSpec,
+            NULL};
+    /*
+     * The registration machinery is OK with NULL being the new DType, but
+     * the double DType is dynamic information we cannot hardcode:
+     */
+    UnitToDoubleCastSpec.dtypes[1] = PyArray_DoubleDType;
+    DoubleToUnitCastSpec.dtypes[0] = PyArray_DoubleDType;
 
     PyArrayDTypeMeta_Spec UnitDType_DTypeSpec = {
             .flags = NPY_DT_PARAMETRIC,
@@ -208,6 +226,8 @@ init_unit_dtype(void)
             &UnitDType_Type, &UnitDType_DTypeSpec) < 0) {
         return -1;
     }
+    /* Ensure that `singleton` is filled in (we rely on that) */
+    UnitDType_Type.singleton = PyArray_GetDefaultDescr(&UnitDType_Type);
 
     return 0;
 }
