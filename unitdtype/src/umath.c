@@ -11,17 +11,21 @@
 #include "umath.h"
 
 
+/*
+ * WARNING: The following function relies on the fact that all NumPy builtins\
+ *          (that we use) do provide a singleton.
+ *
+ * This function could possibly be cleaned up/refined a bit, but it should be
+ * completely fine in practice.
+ * (It assumes there is nothing non-unit specific to preserve for example)
+ */
 static int
 strip_unit_translate_given_descrs(
         int nin, int nout, PyArray_DTypeMeta *wrapped_dtypes[],
         PyArray_Descr *given_descrs[], PyArray_Descr *new_descrs[])
 {
-    /*
-     * Anything we wrap, we can always fill in the double singleton
-     * (even if unspecified).  We do not even support e.g. byte-swapping!
-     */
     for (int i = 0; i < nin + nout; i++) {
-        new_descrs[i] = PyArray_DoubleDType->singleton;
+        new_descrs[i] = wrapped_dtypes[i]->singleton;
     }
     return 0;
 }
@@ -58,6 +62,48 @@ same_unit_translate_loop_descrs(int nin, int nout,
         loop_descrs[i] = result_descr;
     }
     Py_DECREF(result_descr);
+    return 0;
+}
+
+
+static int
+same_unit_unmodified_out_translate_loop_descrs(int nin, int nout,
+        PyArray_DTypeMeta *new_dtypes[], PyArray_Descr *given_descrs[],
+        PyArray_Descr *original_descrs[], PyArray_Descr *loop_descrs[])
+{
+    for (int i = 0; i < nin + nout; i++) {
+        if (!PyArray_ISNBO(original_descrs[i]->byteorder)) {
+            PyErr_SetString(PyExc_TypeError,
+                    "Loop descriptor is not compatible with wrapped one!");
+            return -1;
+        }
+    }
+
+    // TODO: It is unclear to me if I should prefer the common dtypes with
+    //       or without outputs!
+    //       (That is what should be cast, inputs or outputs?)
+    PyArray_Descr *result_descr = PyArray_ResultType(
+            0, NULL, nin, given_descrs);
+    if (result_descr == NULL) {
+        return -1;
+    }
+    /*
+     * We used the normal ResultType function, but the input is known to be
+     * one of ours, a UnitDtype.
+     */
+    assert(Py_TYPE(result_descr) == &UnitDType_Type);
+    for (int i = 0; i < nin; i++) {
+        Py_INCREF(result_descr);
+        loop_descrs[i] = result_descr;
+    }
+    Py_DECREF(result_descr);
+
+    /* Keep the outputs unmodified (e.g. for comparisons) */
+    for (int i = nin; i < nin + nout; i++) {
+        Py_INCREF(original_descrs[i]);
+        loop_descrs[i] = original_descrs[i];
+    }
+
     return 0;
 }
 
@@ -132,15 +178,87 @@ division_translate_loop_descrs(int nin, int nout,
 
 
 
+/*
+ * Define a lists of to be wrapped ufuncs, read and used at import time
+ * in `init_wrapped_ufuncs`.
+ */
+typedef struct {
+    char *name;
+    translate_loop_descrs_func *translate_loop_descrs;
+} ufunc_info_struct;
 
-static char *simple_ufuncs[] = {
-    /* unary ones: */
-    "negative", "positive",
-    /* binary ones: */
-    "add", "subtract", "fmod", "hypot", "maximum", "minimum", "fmax", "fmin",
-    /* Potentially interesting: nextafter, heaviside */
-    NULL
+
+static ufunc_info_struct homogeneous_ufuncs[] = {
+    /* Unary ufuncs */
+    {"negative", same_unit_translate_loop_descrs},
+    {"positive", same_unit_translate_loop_descrs},
+    /* binary ones */
+    {"add",      same_unit_translate_loop_descrs},
+    {"subtract", same_unit_translate_loop_descrs},
+    {"fmod",     same_unit_translate_loop_descrs},
+    {"hypot",    same_unit_translate_loop_descrs},
+    {"maximum",  same_unit_translate_loop_descrs},
+    {"minimum",  same_unit_translate_loop_descrs},
+    {"fmax",     same_unit_translate_loop_descrs},
+    {"fmin",     same_unit_translate_loop_descrs},
+    /* Common, special ones: */
+    {"multiply", multiply_translate_loop_descrs},
+    {"divide",   division_translate_loop_descrs},
+    {NULL, NULL}
 };
+
+
+static ufunc_info_struct binary_boolean_output_ufuncs[] = {
+    /* Comparisons */
+    {"equal", same_unit_unmodified_out_translate_loop_descrs},
+    {"not_equal", same_unit_unmodified_out_translate_loop_descrs},
+    {"greater", same_unit_unmodified_out_translate_loop_descrs},
+    {"greater_equal", same_unit_unmodified_out_translate_loop_descrs},
+    {"less", same_unit_unmodified_out_translate_loop_descrs},
+    {"less_equal", same_unit_unmodified_out_translate_loop_descrs},
+    {NULL, NULL}
+};
+
+static ufunc_info_struct unary_boolean_output_ufuncs[] = {
+    {"isfinite", same_unit_unmodified_out_translate_loop_descrs},
+    {"isnan", same_unit_unmodified_out_translate_loop_descrs},
+    // not sure about signbit, if an offset is involved?!
+    {NULL, NULL}
+};
+
+
+int
+add_wrapping_loops(
+        ufunc_info_struct *ufunc_infos,
+        PyArray_DTypeMeta *new_dtypes[], PyArray_DTypeMeta *wrapped_dtypes[])
+{
+    PyObject *numpy = PyImport_ImportModule("numpy");
+    if (numpy == NULL) {
+        return -1;
+    }
+
+    ufunc_info_struct *ufunc_info = ufunc_infos;
+    while ((*ufunc_info).name != NULL) {
+        PyObject *ufunc = PyObject_GetAttrString(numpy, (*ufunc_info).name);
+        if (ufunc == NULL) {
+            Py_DECREF(numpy);
+            return -1;
+        }
+
+        if (PyUFunc_AddWrappingLoop(
+                ufunc, new_dtypes, wrapped_dtypes,
+                &strip_unit_translate_given_descrs,
+                (*ufunc_info).translate_loop_descrs) < 0) {
+            Py_DECREF(numpy);
+            Py_DECREF(ufunc);
+            return -1;
+        }
+        Py_DECREF(ufunc);
+        ufunc_info++;
+    }
+    Py_DECREF(numpy);
+    return 0;
+}
 
 
 int
@@ -154,59 +272,27 @@ init_wrapped_ufuncs(void)
     /* 3 is enough for all current ufuncs, i.e. binary ones */
     PyArray_DTypeMeta *new_dtypes[] = {
             &UnitDType_Type, &UnitDType_Type, &UnitDType_Type};
-
     PyArray_DTypeMeta *wrapped_dtypes[] = {
             PyArray_DoubleDType, PyArray_DoubleDType, PyArray_DoubleDType};
 
-    char **ufunc_name = simple_ufuncs;
-    while (*ufunc_name != NULL) {
-        PyObject *ufunc = PyObject_GetAttrString(numpy, *ufunc_name);
-        if (ufunc == NULL) {
-            Py_DECREF(numpy);
-            return -1;
-        }
-
-        if (PyUFunc_AddWrappingLoop(
-                ufunc, new_dtypes, wrapped_dtypes,
-                &strip_unit_translate_given_descrs,
-                &same_unit_translate_loop_descrs) < 0) {
-            Py_DECREF(numpy);
-            Py_DECREF(ufunc);
-            return -1;
-        }
-        Py_DECREF(ufunc);
-        ufunc_name++;
-    }
-
-    PyObject *multiply = PyObject_GetAttrString(numpy, "multiply");
-    if (multiply == NULL) {
-        Py_DECREF(numpy);
-        return -1;
-    }
-    if (PyUFunc_AddWrappingLoop(
-            multiply, new_dtypes, wrapped_dtypes,
-            &strip_unit_translate_given_descrs,
-            &multiply_translate_loop_descrs) < 0) {
-        Py_DECREF(numpy);
-        Py_DECREF(multiply);
+    if (add_wrapping_loops(
+            homogeneous_ufuncs, new_dtypes, wrapped_dtypes) < 0) {
         return -1;
     }
 
-    PyObject *divide = PyObject_GetAttrString(numpy, "divide");
-    if (divide == NULL) {
-        Py_DECREF(numpy);
-        return -1;
-    }
-    if (PyUFunc_AddWrappingLoop(
-            divide, new_dtypes, wrapped_dtypes,
-            &strip_unit_translate_given_descrs,
-            &division_translate_loop_descrs) < 0) {
-        Py_DECREF(numpy);
-        Py_DECREF(multiply);
+    new_dtypes[2] = PyArray_BoolDType;
+    wrapped_dtypes[2] = PyArray_BoolDType;
+    if (add_wrapping_loops(
+            binary_boolean_output_ufuncs, new_dtypes, wrapped_dtypes) < 0) {
         return -1;
     }
 
-    Py_DECREF(numpy);
-    Py_DECREF(multiply);
+    new_dtypes[1] = PyArray_BoolDType;
+    wrapped_dtypes[1] = PyArray_BoolDType;
+    if (add_wrapping_loops(
+            unary_boolean_output_ufuncs, new_dtypes, wrapped_dtypes) < 0) {
+        return -1;
+    }
+
     return 0;
 }
