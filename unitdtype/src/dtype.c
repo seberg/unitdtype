@@ -15,7 +15,7 @@
 /*
  * Internal helper to create new instances, does not check unit for validity.
  */
-static UnitDTypeObject *
+UnitDTypeObject *
 new_unitdtype_instance(PyObject *unit)
 {
     UnitDTypeObject *new = (UnitDTypeObject *)PyArrayDescr_Type.tp_new(

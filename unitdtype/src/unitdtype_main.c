@@ -7,6 +7,7 @@
 
 #include "scalar.h"
 #include "dtype.h"
+#include "umath.h"
 
 
 static struct PyModuleDef moduledef = {
@@ -45,6 +46,10 @@ PyMODINIT_FUNC PyInit__unitdtype_main(void)
 
     if (PyModule_AddObject(m,
             "Float64Unit", (PyObject *)&UnitDType_Type) < 0) {
+        goto error;
+    }
+
+    if (init_wrapped_ufuncs() < 0) {
         goto error;
     }
 

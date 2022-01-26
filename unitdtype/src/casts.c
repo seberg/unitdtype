@@ -38,25 +38,25 @@ get_conversion_factor(
     if (NPY_UNLIKELY(get_conversion_factor) == NULL) {
         PyObject *mod = PyImport_ImportModule("unitdtype._helpers");
         if (mod == NULL) {
-            return NULL;
+            return -1;
         }
         get_conversion_factor = PyObject_GetAttrString(
                 mod, "get_conversion_factor");
         Py_DECREF(mod);
         if (get_conversion_factor == NULL) {
-            return NULL;
+            return -1;
         }
 
         PyObject *tmp = PyUnicode_FromString("");
         if (tmp == NULL) {
             Py_CLEAR(get_conversion_factor);
-            return NULL;
+            return -1;
         }
         int res = UnitConverter(tmp, &dimensionless);
         Py_DECREF(tmp);
         if (res == 0) {
             Py_CLEAR(get_conversion_factor);
-            return NULL;
+            return -1;
         }
     }
 

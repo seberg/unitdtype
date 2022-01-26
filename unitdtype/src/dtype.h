@@ -9,6 +9,9 @@ typedef struct {
 
 extern PyArray_DTypeMeta UnitDType_Type;
 
+UnitDTypeObject *
+new_unitdtype_instance(PyObject *unit);
+
 int
 init_unit_dtype(void);
 
