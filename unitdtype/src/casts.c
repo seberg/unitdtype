@@ -295,7 +295,7 @@ get_conv_factor_auxdata(PyArray_Descr *from_dt, PyArray_Descr *to_dt)
 }
 
 
-static NPY_GCC_OPT_3 NPY_GCC_UNROLL_LOOPS int
+static __attribute__((optimize("O3"))) __attribute__((optimize("unroll-loops"))) int
 unit_to_unit_contiguous_no_offset(PyArrayMethod_Context *NPY_UNUSED(context),
         char *const data[], npy_intp const dimensions[],
         npy_intp const NPY_UNUSED(strides[]), conv_auxdata *auxdata)
@@ -314,7 +314,7 @@ unit_to_unit_contiguous_no_offset(PyArrayMethod_Context *NPY_UNUSED(context),
 }
 
 
-static NPY_GCC_OPT_3 NPY_GCC_UNROLL_LOOPS int
+static __attribute__((optimize("O3"))) int
 unit_to_unit_strided_no_offset(PyArrayMethod_Context *NPY_UNUSED(context),
         char *const data[], npy_intp const dimensions[],
         npy_intp const strides[], conv_auxdata *auxdata)
@@ -335,7 +335,7 @@ unit_to_unit_strided_no_offset(PyArrayMethod_Context *NPY_UNUSED(context),
 }
 
 
-static NPY_GCC_OPT_3 NPY_GCC_UNROLL_LOOPS int
+static __attribute__((optimize("O3"))) __attribute__((optimize("unroll-loops"))) int
 unit_to_unit_contiguous_offset(PyArrayMethod_Context *NPY_UNUSED(context),
         char *const data[], npy_intp const dimensions[],
         npy_intp const NPY_UNUSED(strides[]), conv_auxdata *auxdata)
@@ -355,7 +355,7 @@ unit_to_unit_contiguous_offset(PyArrayMethod_Context *NPY_UNUSED(context),
 }
 
 
-static NPY_GCC_OPT_3 NPY_GCC_UNROLL_LOOPS int
+static __attribute__((optimize("O3"))) int
 unit_to_unit_strided_offset(PyArrayMethod_Context *NPY_UNUSED(context),
         char *const data[], npy_intp const dimensions[],
         npy_intp const strides[], conv_auxdata *auxdata)
@@ -377,7 +377,7 @@ unit_to_unit_strided_offset(PyArrayMethod_Context *NPY_UNUSED(context),
 }
 
 
-static NPY_GCC_OPT_3 NPY_GCC_UNROLL_LOOPS int
+static __attribute__((optimize("O3"))) int
 unit_to_unit_unaligned(PyArrayMethod_Context *NPY_UNUSED(context),
         char *const data[], npy_intp const dimensions[],
         npy_intp const strides[], conv_auxdata *auxdata)
