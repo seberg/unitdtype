@@ -21,16 +21,20 @@ The following ufuncs are supported:
 * negative, positive
 * add, subtract
 * multiple, divide
+* matmul
 * fmod
 * hypot  (not sure if this is quite right)
 * maximum, minimum, fmax, fmin
 * comparisons (note that we never compare to 0).
+* Logical ufuncs (via casting to boolean)
 
 More are likely to be added and I may not updated the README.
 
 Many functions in NumPy should just work, however, e.g. sorting is not
 implemented.  One caveat is that `np.prod` is _not_ implemented and this
-requires some new API to be designed to make work (similar for `matmul`).
+requires some new API to be designed to make work (similar to theoretical
+other generalized ufuncs if they need the number of elements to be worked
+on to figure out the result).
 
 Example?
 ```python3
