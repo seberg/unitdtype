@@ -513,3 +513,62 @@ PyArrayMethod_Spec UnitToDoubleCastSpec = {
         .slots = u2d_slots,
 };
 
+
+/*
+ * Simple boolean casts.  Note this ignores the unit, so 0 Celsius is False
+ * and 0 Fahrenheit is also False but both are True if converted.
+ */
+static __attribute__((optimize("O3"))) __attribute__((optimize("unroll-loops"))) int
+unit_to_bool_contiguous(PyArrayMethod_Context *NPY_UNUSED(context),
+        char *const data[], npy_intp const dimensions[],
+        npy_intp const NPY_UNUSED(strides[]), NpyAuxData *NPY_UNUSED(auxdata))
+{
+    npy_intp N = dimensions[0];
+    double *in = (double *)data[0];
+    npy_bool *out = (npy_bool *)data[1];
+
+    while (N--) {
+        *out = *in != 0.;
+        out++;
+        in++;
+    }
+    return 0;
+}
+
+static __attribute__((optimize("O3"))) int
+unit_to_bool_strided(PyArrayMethod_Context *NPY_UNUSED(context),
+        char *const data[], npy_intp const dimensions[],
+        npy_intp const strides[], NpyAuxData *NPY_UNUSED(auxdata))
+{
+    npy_intp N = dimensions[0];
+    char *in = data[0];
+    char *out = data[1];
+    npy_intp in_stride = strides[0];
+    npy_intp out_stride = strides[1];
+
+    while (N--) {
+        *(npy_bool *)out = *(double *)in != 0.;
+        out += in_stride;
+        in += out_stride;
+    }
+    return 0;
+}
+
+
+static PyArray_DTypeMeta *u2b_dtypes[2] = {NULL, NULL};
+
+static PyType_Slot u2b_slots[] = {
+        {NPY_METH_contiguous_loop, &unit_to_bool_contiguous},
+        /* The unit_to_unit_get_loop is written to be compatible: */
+        {NPY_METH_strided_loop, &unit_to_bool_strided},
+        {0, NULL}
+};
+
+PyArrayMethod_Spec UnitToBoolCastSpec = {
+        .name = "cast_Float64Unit_to_Bool",
+        .nin = 1,
+        .nout = 1,
+        .casting = NPY_UNSAFE_CASTING,
+        .dtypes = u2b_dtypes,
+        .slots = u2b_slots,
+};

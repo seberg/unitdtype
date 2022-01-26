@@ -215,13 +215,14 @@ init_unit_dtype(void)
 {
     PyArrayMethod_Spec *casts[] = {
             &UnitToUnitCastSpec, &UnitToDoubleCastSpec, &DoubleToUnitCastSpec,
-            NULL};
+            &UnitToBoolCastSpec, NULL};
     /*
      * The registration machinery is OK with NULL being the new DType, but
      * the double DType is dynamic information we cannot hardcode:
      */
     UnitToDoubleCastSpec.dtypes[1] = PyArray_DoubleDType;
     DoubleToUnitCastSpec.dtypes[0] = PyArray_DoubleDType;
+    UnitToBoolCastSpec.dtypes[1] = PyArray_BoolDType;
 
     PyArrayDTypeMeta_Spec UnitDType_DTypeSpec = {
             .flags = NPY_DT_PARAMETRIC,

@@ -9,5 +9,6 @@ get_conversion_factor(
 extern PyArrayMethod_Spec UnitToUnitCastSpec;
 extern PyArrayMethod_Spec DoubleToUnitCastSpec;
 extern PyArrayMethod_Spec UnitToDoubleCastSpec;
+extern PyArrayMethod_Spec UnitToBoolCastSpec;
 
 #endif  /* _NPY_CASTS_H */
