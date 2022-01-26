@@ -9,6 +9,7 @@
 
 #include "scalar.h"
 #include "casts.h"
+#include "additional_numeric_casts.h"
 #include "dtype.h"
 
 
@@ -214,15 +215,57 @@ int
 init_unit_dtype(void)
 {
     PyArrayMethod_Spec *casts[] = {
-            &UnitToUnitCastSpec, &UnitToDoubleCastSpec, &DoubleToUnitCastSpec,
-            &UnitToBoolCastSpec, NULL};
+            &UnitToUnitCastSpec,
+            &UnitToBoolCastSpec, &BoolToUnitCastSpec,
+            /* units */
+            &UnitToUByteCastSpec, &UByteToUnitCastSpec,
+            &UnitToUShortCastSpec, &UShortToUnitCastSpec,
+            &UnitToUIntCastSpec, &UIntToUnitCastSpec,
+            &UnitToULongCastSpec, &ULongToUnitCastSpec,
+            &UnitToULongLongCastSpec, &ULongLongToUnitCastSpec,
+            /* ints */
+            &UnitToByteCastSpec, &ByteToUnitCastSpec,
+            &UnitToShortCastSpec, &ShortToUnitCastSpec,
+            &UnitToIntCastSpec, &IntToUnitCastSpec,
+            &UnitToLongCastSpec, &LongToUnitCastSpec,
+            &UnitToLongLongCastSpec, &LongLongToUnitCastSpec,
+            /* floats */
+            &UnitToFloatCastSpec, &FloatToUnitCastSpec,
+            &UnitToDoubleCastSpec, &DoubleToUnitCastSpec,
+            NULL};
     /*
      * The registration machinery is OK with NULL being the new DType, but
-     * the double DType is dynamic information we cannot hardcode:
+     * the other DType is dynamic information we cannot hardcode unfortunately:
      */
+    UnitToBoolCastSpec.dtypes[1] = &PyArray_BoolDType;
+    BoolToUnitCastSpec.dtypes[0] = &PyArray_BoolDType;
+
+    UnitToUByteCastSpec.dtypes[1] = &PyArray_UByteDType;
+    UByteToUnitCastSpec.dtypes[0] = &PyArray_UByteDType;
+    UnitToUShortCastSpec.dtypes[1] = &PyArray_UShortDType;
+    UShortToUnitCastSpec.dtypes[0] = &PyArray_UShortDType;
+    UnitToUIntCastSpec.dtypes[1] = &PyArray_UIntDType;
+    UIntToUnitCastSpec.dtypes[0] = &PyArray_UIntDType;
+    UnitToULongCastSpec.dtypes[1] = &PyArray_ULongDType;
+    ULongToUnitCastSpec.dtypes[0] = &PyArray_ULongDType;
+    UnitToULongLongCastSpec.dtypes[1] = &PyArray_ULongLongDType;
+    ULongLongToUnitCastSpec.dtypes[0] = &PyArray_ULongLongDType;
+
+    UnitToByteCastSpec.dtypes[1] = &PyArray_ByteDType;
+    ByteToUnitCastSpec.dtypes[0] = &PyArray_ByteDType;
+    UnitToShortCastSpec.dtypes[1] = &PyArray_ShortDType;
+    ShortToUnitCastSpec.dtypes[0] = &PyArray_ShortDType;
+    UnitToIntCastSpec.dtypes[1] = &PyArray_IntDType;
+    IntToUnitCastSpec.dtypes[0] = &PyArray_IntDType;
+    UnitToLongCastSpec.dtypes[1] = &PyArray_LongDType;
+    LongToUnitCastSpec.dtypes[0] = &PyArray_LongDType;
+    UnitToLongLongCastSpec.dtypes[1] = &PyArray_LongLongDType;
+    LongLongToUnitCastSpec.dtypes[0] = &PyArray_LongLongDType;
+
+    UnitToFloatCastSpec.dtypes[1] = &PyArray_FloatDType;
+    FloatToUnitCastSpec.dtypes[0] = &PyArray_FloatDType;
     UnitToDoubleCastSpec.dtypes[1] = &PyArray_DoubleDType;
     DoubleToUnitCastSpec.dtypes[0] = &PyArray_DoubleDType;
-    UnitToBoolCastSpec.dtypes[1] = &PyArray_BoolDType;
 
     PyArrayDTypeMeta_Spec UnitDType_DTypeSpec = {
             .flags = NPY_DT_PARAMETRIC,
