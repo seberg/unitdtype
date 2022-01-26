@@ -83,18 +83,19 @@ get_conversion_factor(
         return -1;
     }
     // TODO: Do I need to check types better?
-    *factor = PyFloat_AsDouble(PyTuple_GET_ITEM(conv, 0));\
+    *factor = PyFloat_AsDouble(PyTuple_GET_ITEM(conv, 0));
     if (*factor == -1 && PyErr_Occurred()) {
         Py_DECREF(conv);
         return -1;
     }
     *offset = 0;
     if (PyTuple_GET_ITEM(conv, 1) != Py_None) {
-        *offset = PyFloat_AsDouble(PyTuple_GET_ITEM(conv, 1));
-        if (*factor == -1 && PyErr_Occurred()) {
+        double off = PyFloat_AsDouble(PyTuple_GET_ITEM(conv, 1));
+        if (off == -1 && PyErr_Occurred()) {
             Py_DECREF(conv);
             return -1;
         }
+        *offset = -off;
     }
     Py_DECREF(conv);
     return 0;
@@ -346,7 +347,7 @@ unit_to_unit_contiguous_offset(PyArrayMethod_Context *NPY_UNUSED(context),
     double *out = (double *)data[1];
 
     while (N--) {
-        *out = factor * (*in + offset);
+        *out = factor * *in + offset;
         out++;
         in++;
     }
@@ -368,7 +369,7 @@ unit_to_unit_strided_offset(PyArrayMethod_Context *NPY_UNUSED(context),
     npy_intp out_stride = strides[1];
 
     while (N--) {
-        *(double *)out = factor * (*(double *)in + offset);
+        *(double *)out = factor * *(double *)in + offset;
         in += in_stride;
         out += out_stride;
     }
