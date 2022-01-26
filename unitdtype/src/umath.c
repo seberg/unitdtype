@@ -5,6 +5,8 @@
 #define NO_IMPORT_ARRAY
 #include "numpy/arrayobject.h"
 #include "numpy/ndarraytypes.h"
+#include "numpy/ufuncobject.h"
+
 #include "numpy/experimental_dtype_api.h"
 
 #include "dtype.h"
@@ -229,9 +231,124 @@ static ufunc_info_struct unary_boolean_output_ufuncs[] = {
 };
 
 
+/*
+ * Generic promoter used by as a final fallback on ufuncs.  Most operations are
+ * homogeneous, so we can try to find the homogeneous dtype on the inputs
+ * and use that.
+ * We need to special case the reduction case, where op_dtypes[0] == NULL
+ * is possible.
+ *
+ * TODO: Copied from NumPy, because NumPy currently does NOT add it, we do here
+ *       to make mixing doubles and units work mostly.
+ *       This is using way to big machinery for the purpose, but you know :).
+ */
+NPY_NO_EXPORT int
+default_ufunc_promoter(PyUFuncObject *ufunc,
+        PyArray_DTypeMeta *op_dtypes[], PyArray_DTypeMeta *signature[],
+        PyArray_DTypeMeta *new_op_dtypes[])
+{
+    /* If nin < 2 promotion is a no-op, so it should not be registered */
+    assert(ufunc->nin > 1);
+    if (op_dtypes[0] == NULL) {
+        assert(ufunc->nin == 2 && ufunc->nout == 1);  /* must be reduction */
+        Py_INCREF(op_dtypes[1]);
+        new_op_dtypes[0] = op_dtypes[1];
+        Py_INCREF(op_dtypes[1]);
+        new_op_dtypes[1] = op_dtypes[1];
+        Py_INCREF(op_dtypes[1]);
+        new_op_dtypes[2] = op_dtypes[1];
+        return 0;
+    }
+    PyArray_DTypeMeta *common = NULL;
+    /*
+     * If a signature is used and homogeneous in its outputs use that
+     * (Could/should likely be rather applied to inputs also, although outs
+     * only could have some advantage and input dtypes are rarely enforced.)
+     */
+    for (int i = ufunc->nin; i < ufunc->nargs; i++) {
+        if (signature[i] != NULL) {
+            if (common == NULL) {
+                Py_INCREF(signature[i]);
+                common = signature[i];
+            }
+            else if (common != signature[i]) {
+                Py_CLEAR(common);  /* Not homogeneous, unset common */
+                break;
+            }
+        }
+    }
+    /* Otherwise, use the common DType of all input operands */
+    if (common == NULL) {
+        common = PyArray_PromoteDTypeSequence(ufunc->nin, op_dtypes);
+        if (common == NULL) {
+            if (PyErr_ExceptionMatches(PyExc_TypeError)) {
+                PyErr_Clear();  /* Do not propagate normal promotion errors */
+            }
+            return -1;
+        }
+    }
+
+    for (int i = 0; i < ufunc->nargs; i++) {
+        PyArray_DTypeMeta *tmp = common;
+        if (signature[i]) {
+            tmp = signature[i];  /* never replace a fixed one. */
+        }
+        Py_INCREF(tmp);
+        new_op_dtypes[i] = tmp;
+    }
+    for (int i = ufunc->nin; i < ufunc->nargs; i++) {
+        Py_XINCREF(op_dtypes[i]);
+        new_op_dtypes[i] = op_dtypes[i];
+    }
+
+    Py_DECREF(common);
+    return 0;
+}
+
+/*
+ * Make multiplication work by injecting a "default promoter" that NumPy
+ * should be doing anyway in the future.
+ * I.e. this will have to be removed again, because NumPy is going to do it
+ * already for us anyway :).
+ *
+ * I.e. using a promoter makes sure that Unit + Double will use Unit + Unit
+ * under the hood (and thus work).
+ */
+static int
+add_default_promoter(PyUFuncObject *ufunc)
+{
+    static PyObject *promoter = NULL;
+
+    // TODO: I am starting to think promoters should be "rich" objects for
+    //       future safety (not a big issue, this API allows wrapping the
+    //       capsule up into something new, so we are future-proof).
+    if (promoter == NULL) {
+        promoter = PyCapsule_New(
+                &default_ufunc_promoter, "numpy._ufunc_promoter", NULL);
+        if (promoter == NULL) {
+            return -1;
+        }
+    }
+
+    PyObject *DType_tuple = PyTuple_New(ufunc->nargs);
+    if (DType_tuple == NULL) {
+        return -1;
+    }
+    for (int i = 0; i < ufunc->nargs; i++) {
+        Py_INCREF(&PyArrayDescr_Type);
+        PyTuple_SET_ITEM(DType_tuple, i, (PyObject *)&PyArrayDescr_Type);
+    }
+
+    int res = PyUFunc_AddPromoter((PyObject *)ufunc, DType_tuple, promoter);
+    Py_DECREF(DType_tuple);
+    Py_DECREF(promoter);
+    return res;
+}
+
+
 int
 add_wrapping_loops(
-        ufunc_info_struct *ufunc_infos,
+        ufunc_info_struct *ufunc_infos, int add_promoter,
         PyArray_DTypeMeta *new_dtypes[], PyArray_DTypeMeta *wrapped_dtypes[])
 {
     PyObject *numpy = PyImport_ImportModule("numpy");
@@ -255,6 +372,16 @@ add_wrapping_loops(
             Py_DECREF(ufunc);
             return -1;
         }
+
+        if (add_promoter) {
+            /* By now we know it is for sure a ufunc. */
+            if (add_default_promoter((PyUFuncObject *)ufunc) < 0) {
+                Py_DECREF(numpy);
+                Py_DECREF(ufunc);
+                return -1;
+            }
+        }
+
         Py_DECREF(ufunc);
         ufunc_info++;
     }
@@ -278,21 +405,21 @@ init_wrapped_ufuncs(void)
             &PyArray_DoubleDType, &PyArray_DoubleDType, &PyArray_DoubleDType};
 
     if (add_wrapping_loops(
-            homogeneous_ufuncs, new_dtypes, wrapped_dtypes) < 0) {
+            homogeneous_ufuncs, 1, new_dtypes, wrapped_dtypes) < 0) {
         return -1;
     }
 
     new_dtypes[2] = &PyArray_BoolDType;
     wrapped_dtypes[2] = &PyArray_BoolDType;
     if (add_wrapping_loops(
-            binary_boolean_output_ufuncs, new_dtypes, wrapped_dtypes) < 0) {
+            binary_boolean_output_ufuncs, 0, new_dtypes, wrapped_dtypes) < 0) {
         return -1;
     }
 
-    new_dtypes[1] = PyArray_BoolDType;
-    wrapped_dtypes[1] = PyArray_BoolDType;
+    new_dtypes[1] = &PyArray_BoolDType;
+    wrapped_dtypes[1] = &PyArray_BoolDType;
     if (add_wrapping_loops(
-            unary_boolean_output_ufuncs, new_dtypes, wrapped_dtypes) < 0) {
+            unary_boolean_output_ufuncs, 0, new_dtypes, wrapped_dtypes) < 0) {
         return -1;
     }
 
