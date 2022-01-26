@@ -61,7 +61,7 @@ common_instance(UnitDTypeObject *dtype1, UnitDTypeObject *dtype2)
 static PyArray_DTypeMeta *
 common_dtype(PyArray_DTypeMeta *cls, PyArray_DTypeMeta *other)
 {
-    if (other == PyArray_DoubleDType) {
+    if (other == &PyArray_DoubleDType) {
         Py_INCREF(cls);
         return cls;
     }
@@ -220,9 +220,9 @@ init_unit_dtype(void)
      * The registration machinery is OK with NULL being the new DType, but
      * the double DType is dynamic information we cannot hardcode:
      */
-    UnitToDoubleCastSpec.dtypes[1] = PyArray_DoubleDType;
-    DoubleToUnitCastSpec.dtypes[0] = PyArray_DoubleDType;
-    UnitToBoolCastSpec.dtypes[1] = PyArray_BoolDType;
+    UnitToDoubleCastSpec.dtypes[1] = &PyArray_DoubleDType;
+    DoubleToUnitCastSpec.dtypes[0] = &PyArray_DoubleDType;
+    UnitToBoolCastSpec.dtypes[1] = &PyArray_BoolDType;
 
     PyArrayDTypeMeta_Spec UnitDType_DTypeSpec = {
             .flags = NPY_DT_PARAMETRIC,

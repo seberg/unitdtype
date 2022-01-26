@@ -275,15 +275,15 @@ init_wrapped_ufuncs(void)
     PyArray_DTypeMeta *new_dtypes[] = {
             &UnitDType_Type, &UnitDType_Type, &UnitDType_Type};
     PyArray_DTypeMeta *wrapped_dtypes[] = {
-            PyArray_DoubleDType, PyArray_DoubleDType, PyArray_DoubleDType};
+            &PyArray_DoubleDType, &PyArray_DoubleDType, &PyArray_DoubleDType};
 
     if (add_wrapping_loops(
             homogeneous_ufuncs, new_dtypes, wrapped_dtypes) < 0) {
         return -1;
     }
 
-    new_dtypes[2] = PyArray_BoolDType;
-    wrapped_dtypes[2] = PyArray_BoolDType;
+    new_dtypes[2] = &PyArray_BoolDType;
+    wrapped_dtypes[2] = &PyArray_BoolDType;
     if (add_wrapping_loops(
             binary_boolean_output_ufuncs, new_dtypes, wrapped_dtypes) < 0) {
         return -1;
