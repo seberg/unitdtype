@@ -204,6 +204,8 @@ static ufunc_info_struct homogeneous_ufuncs[] = {
     /* Common, special ones: */
     {"multiply", multiply_translate_loop_descrs},
     {"divide",   division_translate_loop_descrs},
+    /* Matmul uses the same units as multiply: */
+    {"matmul", multiply_translate_loop_descrs},
     {NULL, NULL}
 };
 
