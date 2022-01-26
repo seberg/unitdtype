@@ -15,8 +15,7 @@ They will also work together _with_ arrays, since they will be
 coerced to 0-D array (and that works).
 
 Currently, casts within Units and to and from double (if dimensionless!)
-is supported.  Casts to bool will probably be added soon (that enables
-logical ufuncs also).
+as well as to boolean (unit is ignored, so offset is also) is supported.
 The following ufuncs are supported:
 * negative, positive
 * add, subtract
@@ -25,16 +24,16 @@ The following ufuncs are supported:
 * fmod
 * hypot  (not sure if this is quite right)
 * maximum, minimum, fmax, fmin
-* comparisons (note that we never compare to 0).
-* Logical ufuncs (via casting to boolean)
+* comparisons  (note that we never compare to 0 scalars, unlike some implementations).
+* Logical ufuncs  (via casting to boolean)
 
 More are likely to be added and I may not updated the README.
 
 Many functions in NumPy should just work, however, e.g. sorting is not
-implemented.  One caveat is that `np.prod` is _not_ implemented and this
-requires some new API to be designed to make work (similar to theoretical
-other generalized ufuncs if they need the number of elements to be worked
-on to figure out the result).
+implemented.  One caveat is that `np.prod` is _not_ implemented as this
+requires some new API to be designed to make work (similar for theoretical
+generalized ufuncs if they need the number of elements to be worked
+on to figure out the result dtype).
 
 Example?
 ```python3
