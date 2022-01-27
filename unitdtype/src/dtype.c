@@ -103,6 +103,12 @@ unit_discover_descriptor_from_pyobject(
  * an `owner` object.  This object would be opaque and possibly ephemeral
  * (you are not allowed to hold on to it) but "owns" the data where things get
  * stored.
+ *
+ * NumPy allows you to set an "is known scalar" function that normally lets
+ * the simple Python types pass (int, float, complex, bytes, strings) as well
+ * as the scalar type itself.
+ * This can be customized, but `setitem` may still be called with arbitrary
+ * objects on a "best effort" basis.
  */
 static int
 unit_setitem(UnitDTypeObject *descr, PyObject *obj, char *dataptr)
@@ -294,7 +300,16 @@ init_unit_dtype(void)
             &UnitDType_Type, &UnitDType_DTypeSpec) < 0) {
         return -1;
     }
-    /* Ensure that `singleton` is filled in (we rely on that) */
+    /*
+     * Ensure that `singleton` is filled in (we rely on that).  It is possible
+     * to provide a custom `default_descr`, but it is filled in automatically
+     * to just call `DType()` -- however, it does not cache the result
+     * automatically (right now).  This is because it can make sense for a
+     * DType to requiring a new one each time (e.g. a Categorical that needs
+     * to be able to add new Categories).
+     * TODO: Consider flipping this around, so that if you need a new one
+     *       each time, you have to provide a custom `default_descr`.
+     */
     UnitDType_Type.singleton = PyArray_GetDefaultDescr(&UnitDType_Type);
 
     return 0;

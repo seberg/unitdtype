@@ -124,7 +124,7 @@ multiply_translate_loop_descrs(int nin, int nout,
     }
 
     PyObject *unit1 = ((UnitDTypeObject *)given_descrs[0])->unit;
-    PyObject *unit2 = ((UnitDTypeObject *)given_descrs[0])->unit;
+    PyObject *unit2 = ((UnitDTypeObject *)given_descrs[1])->unit;
 
     PyObject *new_unit = PyNumber_Multiply(unit1, unit2);
     if (new_unit == NULL) {
