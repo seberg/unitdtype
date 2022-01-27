@@ -108,7 +108,7 @@ cast_unit_to_@other@_@contig_name@(PyArrayMethod_Context *NPY_UNUSED(context),
 #endif  /* is_Bool */
 
 
-static __attribute__((optimize("O3"))) int
+static __attribute__((optimize("O3"))) @UNROLL@ int
 cast_@other@_to_unit_@contig_name@(PyArrayMethod_Context *NPY_UNUSED(context),
         char *const data[], npy_intp const dimensions[],
         npy_intp const strides[], NpyAuxData *NPY_UNUSED(auxdata))
