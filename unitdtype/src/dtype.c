@@ -61,7 +61,18 @@ common_instance(UnitDTypeObject *dtype1, UnitDTypeObject *dtype2)
 static PyArray_DTypeMeta *
 common_dtype(PyArray_DTypeMeta *cls, PyArray_DTypeMeta *other)
 {
-    if (other == &PyArray_DoubleDType) {
+    /*
+     * Typenum is useful for NumPy, but there it can still be convenient.
+     * (New-style user dtypes will probably get -1 as type number...)
+     */
+    if (other->type_num >= 0
+            && PyTypeNum_ISNUMBER(other->type_num)
+            && !PyTypeNum_ISCOMPLEX(other->type_num)
+            && other != &PyArray_LongDoubleDType) {
+        /*
+         * A (simple) builtin numeric type that is not a complex or longdouble
+         * will always promote to the Double Unit (cls).
+         */
         Py_INCREF(cls);
         return cls;
     }
