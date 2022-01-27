@@ -26,26 +26,56 @@
  *       NumPy could directly be reflected here.
  */
 
-#include "additional_numeric_casts.h"
+#include <Python.h>
+
+#define PY_ARRAY_UNIQUE_SYMBOL unitdtype_ARRAY_API
+#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
+#define NO_IMPORT_ARRAY
+#include "numpy/arrayobject.h"
+#include "numpy/ndarraytypes.h"
+#include "numpy/experimental_dtype_api.h"
+
+#include "casts.h"
+
+
+/*
+ * NumPy currently forces us to provide this, because our dtype is parametric.
+ * However, it is actually super trivial.
+ * (All of these casts are considered safe.)
+ */
+static NPY_CASTING
+generic_to_unit_resolve_descriptors(
+        PyObject *NPY_UNUSED(self),
+        PyArray_DTypeMeta *dtypes[2],
+        PyArray_Descr *NPY_UNUSED(given_descrs[2]),
+        PyArray_Descr *loop_descrs[2],
+        npy_intp *NPY_UNUSED(view_offset))
+{
+    Py_INCREF(dtypes[0]->singleton);
+    loop_descrs[0] = dtypes[0]->singleton;
+    Py_INCREF(dtypes[1]->singleton);
+    loop_descrs[1] = dtypes[1]->singleton;
+    return NPY_SAFE_CASTING;
+}
 
 
 /**begin repeat
  * #other = Bool,
- *          UByte, UShort, UInt, ULong, ULonglong,
- *          Byte, Short, Int, Long, Longlong,
+ *          UByte, UShort, UInt, ULong, ULongLong,
+ *          Byte, Short, Int, Long, LongLong,
  *          Float#
  * #type  = npy_bool,
  *          npy_ubyte, npy_ushort, npy_uint, npy_ulong, npy_ulonglong,
  *          npy_byte, npy_short, npy_int, npy_long, npy_longlong,
  *          npy_float#
  */
+#define is_@other@ 1
 
 /**begin repeat1
  * #contig = 0, 1#
- * #contig_name = _strided, _contig#
+ * #contig_name = strided, contig#
  * #UNROLL = , __attribute__((optimize("unroll-loops")))#
  */
-#define is_@other@ 1
 
 #ifndef is_Bool  /* We already made a unit -> bool loop in casts.c */
 
@@ -75,28 +105,10 @@ cast_unit_to_@other@_@contig_name@(PyArrayMethod_Context *NPY_UNUSED(context),
     return 0;
 }
 
-
-static PyArray_DTypeMeta *u2@other@_dtypes[2] = {NULL, NULL};
-
-static PyType_Slot u2@other@_slots[] = {
-        {NPY_METH_contiguous_loop, &unit_to_@other@_contiguous},
-        {NPY_METH_strided_loop, &unit_to_@other@_strided},
-        {0, NULL}
-};
-
-PyArrayMethod_Spec UnitTo@other@CastSpec = {
-        .name = "cast_Unit_to_@other@",
-        .nin = 1,
-        .nout = 1,
-        .casting = NPY_UNSAFE_CASTING,
-        .dtypes = u2@other@_dtypes,
-        .slots = u2@other@_slots,
-};
-
-#endif  /* is_bool */
+#endif  /* is_Bool */
 
 
-static __attribute__((optimize("O3"))) @UNROLL@ int
+static __attribute__((optimize("O3"))) int
 cast_@other@_to_unit_@contig_name@(PyArrayMethod_Context *NPY_UNUSED(context),
         char *const data[], npy_intp const dimensions[],
         npy_intp const strides[], NpyAuxData *NPY_UNUSED(auxdata))
@@ -122,22 +134,54 @@ cast_@other@_to_unit_@contig_name@(PyArrayMethod_Context *NPY_UNUSED(context),
     return 0;
 }
 
+
+/**end repeat1**/
+
+/*
+ * We created all loops, now create the actual cast info/spec:
+ */
+
+#ifndef is_Bool  /* We already made a unit -> bool loop in casts.c */
+
+static PyArray_DTypeMeta *u2@other@_dtypes[2] = {NULL, NULL};
+
+static PyType_Slot u2@other@_slots[] = {
+    {NPY_METH_contiguous_loop, &cast_unit_to_@other@_contig},
+    {NPY_METH_strided_loop, &cast_unit_to_@other@_strided},
+    {0, NULL}
+};
+
+PyArrayMethod_Spec UnitTo@other@CastSpec = {
+    .name = "cast_Unit_to_@other@",
+    .nin = 1,
+    .nout = 1,
+    .casting = NPY_UNSAFE_CASTING,
+    .dtypes = u2@other@_dtypes,
+    .slots = u2@other@_slots,
+};
+
+#endif  /* is_Bool */
+
+
 static PyArray_DTypeMeta *@other@2u_dtypes[2] = {NULL, NULL};
 
 static PyType_Slot @other@2u_slots[] = {
-        {NPY_METH_contiguous_loop, &@other@_to_unit_contiguous},
-        {NPY_METH_strided_loop, &@other@_to_unit_strided},
-        {0, NULL}
+    {NPY_METH_resolve_descriptors, &generic_to_unit_resolve_descriptors},
+    {NPY_METH_contiguous_loop, &cast_@other@_to_unit_contig},
+    {NPY_METH_strided_loop, &cast_@other@_to_unit_strided},
+    {0, NULL}
 };
 
 PyArrayMethod_Spec @other@ToUnitCastSpec = {
-        .name = "cast_@other@_to_Unit",
-        .nin = 1,
-        .nout = 1,
-        .casting = NPY_UNSAFE_CASTING,
-        .dtypes = u2@other@_dtypes,
-        .slots = u2@other@_slots,
+    .name = "cast_@other@_to_Unit",
+    .nin = 1,
+    .nout = 1,
+    .casting = NPY_UNSAFE_CASTING,
+    .dtypes = @other@2u_dtypes,
+    .slots = @other@2u_slots,
 };
 
-#undef is_@type@
+#undef is_@other@
+
 /**end repeat**/
+/* ... */
