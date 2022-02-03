@@ -22,7 +22,7 @@ PyMODINIT_FUNC PyInit__unitdtype_main(void)
     if (_import_array() < 0) {
         return NULL;
     }
-    if (import_experimental_dtype_api(4) < 0) {
+    if (import_experimental_dtype_api(5) < 0) {
         return NULL;
     }
 

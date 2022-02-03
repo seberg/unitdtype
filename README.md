@@ -4,7 +4,7 @@
 
 This currently requires my branch on NumPy (As of 2022-01-26):
 
-    https://github.com/seberg/numpy/tree/unit-dtype-extensions
+    https://github.com/seberg/numpy/tree/reduce-identity-array-meth
 
 It supports more than my previous prototype and is now in C.
 
@@ -26,6 +26,9 @@ The following ufuncs are supported:
 * maximum, minimum, fmax, fmin
 * comparisons  (note that we never compare to 0 scalars, unlike some implementations).
 * Logical ufuncs  (via casting to boolean)
+
+And the following related functions:
+* sum, mean, ...
 
 More are likely to be added and I may not updated the README.
 
