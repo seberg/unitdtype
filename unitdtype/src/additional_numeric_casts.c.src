@@ -98,8 +98,8 @@ cast_unit_to_@other@_@contig_name@(PyArrayMethod_Context *NPY_UNUSED(context),
         out += sizeof(@type@);
         in += sizeof(double);
 #else
-        out += in_stride;
-        in += out_stride;
+        in += in_stride;
+        out += out_stride;
 #endif
     }
     return 0;
@@ -124,11 +124,11 @@ cast_@other@_to_unit_@contig_name@(PyArrayMethod_Context *NPY_UNUSED(context),
     while (N--) {
         *(double *)out = (double)*(@type@ *)in;
 #if @contig@
-        out += sizeof(double);
         in += sizeof(@type@);
+        out += sizeof(double);
 #else
-        out += in_stride;
-        in += out_stride;
+        in += in_stride;
+        out += out_stride;
 #endif
     }
     return 0;
